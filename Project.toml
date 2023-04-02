@@ -1,0 +1,4 @@
+name = "pandprep"
+uuid = "791d6632-7970-42a7-a59d-67e08865c898"
+authors = ["rturquier <remi.turquier@ensae.fr>"]
+version = "0.1.0"

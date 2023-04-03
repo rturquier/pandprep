@@ -11,7 +11,7 @@ function sird_ode!(du, u, p, t)
     du[4] = d * I
 end
 
-function run_sird(;S=0.99, I=0.01, R=0, D=0, i=0.1, r=0.05, d=0.001, end_time=500)
+function run_sird(S=0.99, I=0.01, R=0, D=0, i=0.2, r=0.05, d=0.01, end_time=500)
     initial_conditions=[S, I, R, D]
     parameters=[i, r, d]
     time_span=(0.0, end_time)
@@ -21,17 +21,25 @@ function run_sird(;S=0.99, I=0.01, R=0, D=0, i=0.1, r=0.05, d=0.001, end_time=50
     return sird_solution
 end
 
-function number_of_deaths(;kwargs...)
-    simulation_result = run_sird(kwargs)
-    number_of_deaths_at_the_end = simulation_result[end, "D"]
-    return number_of_deaths_at_the_end
+function count_final_deaths(sird_result)
+    return sird_result[end, "D"]
 end
 
 run_sird() |>
 @vlplot(
     :line,
-    transform=[{"fold"=["S", "I", "R", "D"], as=["compartiment", "population"]}],
+    transform=[{fold=["S", "I", "R", "D"], as=["compartiment", "population"]}],
     x="t:q",
     y="population:q",
     color="compartiment:n"
 )
+
+
+final_deaths_df = DataFrame(S = 0:50:100000)
+final_deaths_df = transform(
+    final_deaths_df,
+    :S => (x -> count_final_deaths.(run_sird.(x))) => :deaths
+)
+
+final_deaths_df |>
+@vlplot(:line, :S, :deaths)

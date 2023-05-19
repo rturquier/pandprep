@@ -57,6 +57,14 @@ end
 end
 
 
+function u(consumption::AbstractFloat, risk_aversion, critical_level)
+    utility = (
+        consumption^(1 - risk_aversion) / (1 - risk_aversion)
+        - critical_level^(1 - risk_aversion) / (1 - risk_aversion)
+    )
+    return utility
+end
+
 @defcomp welfare begin
     W = Variable(index = [time])                # welfare at time t
     W_intertemporal = Variable(index = [time])  # intertemporal welfare
@@ -68,15 +76,8 @@ end
     beta = Parameter()             # population ethics parameter
     rho = Parameter()              # utility discount rate
 
-    function utility(consumption::AbstractFloat, risk_aversion, critical_level)
-        return (
-            consumption^(1 - risk_aversion) / (1 - risk_aversion)
-            - critical_level^(1 - risk_aversion) / (1 - risk_aversion)
-            )
-        end
-
     function run_timestep(p, v, d, t)
-        v.W[t] = p.N[t]^beta * utility(p.c[t], p.gamma, p.c_bar)
+        v.W[t] = p.N[t]^beta * u(p.c[t], p.gamma, p.c_bar)
 
         utility_discount_factors = [exp(-p.rho * date) for date in 0:t]
         v.W_intertemporal[t] = sum(utility_discount_factors * v.W[0:t])

@@ -4,7 +4,7 @@ using Mimi
 
 export construct_model
 
-const model_time = 2023:2523
+const model_time = 0:500
 
 @defcomp population begin
     N = Variable(index = [time])
@@ -40,18 +40,45 @@ end
 
 
 @defcomp economy begin
-    Y = Variable(index = [time]) # production
-    C = Variable(index = [time]) # consumption
-    c = Variable(index = [time]) # per-capita consumption
+    Y = Variable(index = [time])   # production
+    C = Variable(index = [time])   # consumption
+    c = Variable(index = [time])   # per-capita consumption
 
-    N = Parameter(index = [time]) # population
-    B = Parameter(index = [time]) # prevention
-    A = Parameter()               # technology
+    N = Parameter(index = [time])  # population
+    B = Parameter(index = [time])  # prevention
+    A = Parameter()                # technology
 
     function run_timestep(p, v, d, t)
         v.Y[t] = p.A * p.N[t]
         v.C[t] = v.Y - p.B[t]
         v.c[t] = v.Y / p.N[t]
+    end
+end
+
+
+@defcomp welfare begin
+    W = Variable(index = [time])                # welfare at time t
+    W_intertemporal = Variable(index = [time])  # intertemporal welfare
+
+    N = Parameter(index = [time])  # population
+    c = Parameter(index = [time])  # per-capita consumption
+    gamma = Parameter()            # coefficient of relative aversion
+    c_bar = Parameter()            # critical level of utility
+    beta = Parameter()             # population ethics parameter
+    rho = Parameter()              # utility discount rate
+
+    function utility(consumption::AbstractFloat, risk_aversion, critical_level)
+        return (
+            consumption^(1 - risk_aversion) / (1 - risk_aversion)
+            - critical_level^(1 - risk_aversion) / (1 - risk_aversion)
+            )
+        end
+
+    function run_timestep(p, v, d, t)
+        v.W[t] = p.N[t]^beta * utility(p.c[t], p.gamma, p.c_bar)
+
+        utility_discount_factors = [exp(-p.rho * date) for date in 0:t]
+        v.W_intertemporal[t] = sum(utility_discount_factors * v.W[0:t])
     end
 end
 

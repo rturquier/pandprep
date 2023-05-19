@@ -106,7 +106,16 @@ function construct_model()
 
     set_dimension!(model, :time, model_time)
 
+    add_comp!(model, pandemic_risk)
     add_comp!(model, population)
+    add_comp!(model, economy)
+    add_comp!(model, welfare)
+
+    connect_param!(model, :population, :pandemic, :pandemic_risk, :pandemic)
+    connect_param!(model, :economy, :N, :population, :N)
+    connect_param!(model, :welfare, :N, :population, :N)
+    connect_param!(model, :welfare, :c, :economy, :c)
+    connect_param!(model, :welfare, :c, :economy, :c)
 
     return model
 end

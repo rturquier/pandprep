@@ -1,6 +1,7 @@
 module pandprep
 
 using Mimi
+using Distributions
 
 export construct_model
 
@@ -79,6 +80,22 @@ end
 
         utility_discount_factors = [exp(-p.rho * date) for date in 0:t]
         v.W_intertemporal[t] = sum(utility_discount_factors * v.W[0:t])
+    end
+end
+
+
+@defcomp pandemic_risk begin
+    mu = Variable(index = [time])         # pandemic hazard rate
+    pandemic = Variable(index = [time])   # indicator of whether there is a pandemic
+
+    B = Parameter(index = [time])   # prevention
+    mu_bar = Parameter()            # maximum hazard rate
+
+    function run_timestep(p, v, d, t)
+        v.mu[t] = p.mu_bar / (1 + p.B)
+
+        hazard = Bernoulli(v.mu[t])
+        v.pandemic[t] = rand(hazard, 1)
     end
 end
 

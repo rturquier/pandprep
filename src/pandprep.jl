@@ -35,10 +35,25 @@ const model_time = 2023:2523
         if v.N[t] < 0
             v.N[t] = 0
         end
-
     end
 end
 
+
+@defcomp economy begin
+    Y = Variable(index = [time]) # production
+    C = Variable(index = [time]) # consumption
+    c = Variable(index = [time]) # per-capita consumption
+
+    N = Parameter(index = [time]) # population
+    B = Parameter(index = [time]) # prevention
+    A = Parameter()               # technology
+
+    function run_timestep(p, v, d, t)
+        v.Y[t] = p.A * p.N[t]
+        v.C[t] = v.Y - p.B[t]
+        v.c[t] = v.Y / p.N[t]
+    end
+end
 
 
 function construct_model()

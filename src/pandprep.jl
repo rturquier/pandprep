@@ -95,8 +95,12 @@ end
     function run_timestep(p, v, d, t)
         v.mu[t] = p.mu_bar / (1 + p.B)
 
-        hazard = Bernoulli(v.mu[t])
-        v.pandemic[t] = rand(hazard, 1)
+        if any(v.pandemic[0:t-1] .== 1)
+            v.pandemic[t] == 0
+        else
+            hazard = Bernoulli(v.mu[t])
+            v.pandemic[t] = rand(hazard, 1)
+        end
     end
 end
 

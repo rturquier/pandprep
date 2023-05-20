@@ -5,7 +5,10 @@ using Distributions
 
 export construct_model
 
-const model_time = 0:500
+const model_time = collect(0:500)
+
+time_range(from::Int, to::Int) = TimestepIndex(from):TimestepIndex(to)
+
 
 @defcomp population begin
     N = Variable(index = [time])
@@ -13,10 +16,15 @@ const model_time = 0:500
     N_max = Parameter()
     pandemic = Parameter(index = [time])
     pandemic_mortality = Parameter()
-    generation_span = Parameter()
+    generation_span = Parameter{Int}()
 
     function run_timestep(p, v, d, t)
-        v.N[t] = v.N[t - 1]
+        if is_first(t)
+            v.N[t] = p.N_max
+            return
+        end
+
+        v.N[t] =  v.N[t - 1]
 
         # If there is a pandemic, a share of the population dies
         if p.pandemic[t] == 1
@@ -25,13 +33,15 @@ const model_time = 0:500
 
         # If there was a pandemic some years ago, the victims come back
         # into the population
-        if p.pandemic[t - generation_span] == 1
-            v.N[t] += v.N[t - generation_span - 1] * p.pandemic_mortality
+        if t.t == 1 + p.generation_span && p.pandemic[t - p.generation_span] == 1
+            v.N[t] += p.N_max * p.pandemic_mortality
+        elseif t.t > 1 + p.generation_span && p.pandemic[t - p.generation_span] == 1
+            v.N[t] += v.N[t - p.generation_span - 1] * p.pandemic_mortality
         end
 
-        # Check that population does is positive and does not exceed the maximum
+        # Check that population is positive and does not exceed the maximum
         if v.N[t] > p.N_max
-            v.N[t] = N_max
+            v.N[t] = p.N_max
         end
         if v.N[t] < 0
             v.N[t] = 0
@@ -51,8 +61,8 @@ end
 
     function run_timestep(p, v, d, t)
         v.Y[t] = p.A * p.N[t]
-        v.C[t] = v.Y - p.B[t]
-        v.c[t] = v.Y / p.N[t]
+        v.C[t] = v.Y[t] - p.B[t]
+        v.c[t] = v.Y[t] / p.N[t]
     end
 end
 
@@ -77,10 +87,10 @@ end
     rho = Parameter()              # utility discount rate
 
     function run_timestep(p, v, d, t)
-        v.W[t] = p.N[t]^beta * u(p.c[t], p.gamma, p.c_bar)
+        v.W[t] = p.N[t]^p.beta * u(p.c[t], p.gamma, p.c_bar)
 
-        utility_discount_factors = [exp(-p.rho * date) for date in 0:t]
-        v.W_intertemporal[t] = sum(utility_discount_factors * v.W[0:t])
+        utility_discount_factors = [exp(-p.rho) * date for date in 0:(t.t - 1)]
+        v.W_intertemporal[t] = sum(utility_discount_factors .* v.W[time_range(1, t.t)])
     end
 end
 
@@ -92,14 +102,20 @@ end
     B = Parameter(index = [time])   # prevention
     mu_bar = Parameter()            # maximum hazard rate
 
-    function run_timestep(p, v, d, t)
-        v.mu[t] = p.mu_bar / (1 + p.B)
+    mu_first = Parameter()  # intial pandemic hazard rate
 
-        if any(v.pandemic[0:t-1] .== 1)
-            v.pandemic[t] == 0
+    function run_timestep(p, v, d, t)
+        if is_first(t)
+            v.mu[t] = p.mu_first
         else
+            v.mu[t] = p.mu_bar / (1 + p.B[t-1])
+        end
+
+        if is_first(t) || !any(v.pandemic[time_range(1, t.t - 1)] .== 1)
             hazard = Bernoulli(v.mu[t])
-            v.pandemic[t] = rand(hazard, 1)
+            v.pandemic[t] = rand(hazard, 1)[1]
+        else
+            v.pandemic[t] = 0
         end
     end
 end
@@ -112,7 +128,7 @@ end
     constant_prevention = Parameter()     # pre-pandemic level of prevention
 
     function run_timestep(p, v, d, t)
-        if any(p.pandemic[0:t] .== 1)
+        if is_first(t) || any(p.pandemic[time_range(1, t.t)] .== 0)
             v.B[t] = p.constant_prevention
         else
             v.B[t] = 0
@@ -142,6 +158,8 @@ function construct_model()
     update_param!(model, :welfare, :c_bar, 1.0)
     update_param!(model, :welfare, :beta, 1.0)
     update_param!(model, :welfare, :rho, 0.01)
+
+    update_param!(model, :pandemic_risk, :mu_first, 0.0)
 
     connect_param!(model, :pandemic_risk, :B, :policy, :B)
     connect_param!(model, :economy, :B, :policy, :B)

@@ -101,16 +101,34 @@ end
 end
 
 
+@defcomp policy begin
+    B = Variable(index = [time])         # prevention
+
+    pandemic = Parameter(index = [time])  # pandemic history
+    constant_prevention = Parameter()     # pre-pandemic level of prevention
+
+    function run_timestep(p, v, d, t)
+        if any(p.pandemic[0:t] .== 1)
+            v.B[t] = p.constant_prevention
+        else
+            v.B[t] = 0
+        end
+    end
+end
+
+
 function construct_model()
     model = Model()
 
     set_dimension!(model, :time, model_time)
 
+    add_comp!(model, policy)
     add_comp!(model, pandemic_risk)
     add_comp!(model, population)
     add_comp!(model, economy)
     add_comp!(model, welfare)
 
+    update_param!(model, :policy, :constant_prevention, 1)
     update_param!(model, :pandemic_risk, :mu_bar, 0.1)
     update_param!(model, :population, :N_max, 1000)
     update_param!(model, :population, :pandemic_mortality, 0.3)
@@ -121,7 +139,10 @@ function construct_model()
     update_param!(model, :welfare, :beta, 1.0)
     update_param!(model, :welfare, :rho, 0.01)
 
+    connect_param!(model, :pandemic_risk, :B, :policy, :B)
+    connect_param!(model, :economy, :B, :policy, :B)
     connect_param!(model, :population, :pandemic, :pandemic_risk, :pandemic)
+    connect_param!(model, :policy, :pandemic, :pandemic_risk, :pandemic)
     connect_param!(model, :economy, :N, :population, :N)
     connect_param!(model, :welfare, :N, :population, :N)
     connect_param!(model, :welfare, :c, :economy, :c)

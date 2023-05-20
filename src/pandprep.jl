@@ -19,13 +19,13 @@ const model_time = 0:500
         v.N[t] = v.N[t - 1]
 
         # If there is a pandemic, a share of the population dies
-        if p.pandemic[t]
+        if p.pandemic[t] == 1
             v.N[t] -= v.N[t] * p.pandemic_mortality
         end
 
         # If there was a pandemic some years ago, the victims come back
         # into the population
-        if p.pandemic[t - generation_span]
+        if p.pandemic[t - generation_span] == 1
             v.N[t] += v.N[t - generation_span - 1] * p.pandemic_mortality
         end
 

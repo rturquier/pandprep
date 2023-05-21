@@ -89,7 +89,7 @@ end
     function run_timestep(p, v, d, t)
         v.W[t] = p.N[t]^p.beta * u(p.c[t], p.gamma, p.c_bar)
 
-        utility_discount_factors = [exp(-p.rho) * date for date in 0:(t.t - 1)]
+        utility_discount_factors = [exp(-p.rho * date) for date in 0:(t.t - 1)]
         v.W_intertemporal[t] = sum(utility_discount_factors .* v.W[time_range(1, t.t)])
     end
 end

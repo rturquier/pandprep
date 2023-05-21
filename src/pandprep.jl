@@ -62,7 +62,7 @@ end
     function run_timestep(p, v, d, t)
         v.Y[t] = p.A * p.N[t]
         v.C[t] = v.Y[t] - p.B[t]
-        v.c[t] = v.Y[t] / p.N[t]
+        v.c[t] = v.C[t] / p.N[t]
     end
 end
 

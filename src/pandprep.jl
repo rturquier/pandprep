@@ -5,7 +5,7 @@ using Distributions
 
 export construct_model
 
-const model_time = collect(0:500)
+const model_time = collect(2000:2500)
 
 time_range(from::Int, to::Int) = TimestepIndex(from):TimestepIndex(to)
 

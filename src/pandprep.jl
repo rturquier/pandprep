@@ -128,7 +128,7 @@ end
     constant_prevention = Parameter()     # pre-pandemic level of prevention
 
     function run_timestep(p, v, d, t)
-        if is_first(t) || any(p.pandemic[time_range(1, t.t)] .== 0)
+        if is_first(t) || all(p.pandemic[time_range(1, t.t - 1)] .== 0)
             v.B[t] = p.constant_prevention
         else
             v.B[t] = 0

@@ -3,6 +3,7 @@ module pandprep
 using Mimi
 using Distributions
 using Roots
+using DataFrames
 
 export construct_model
 
@@ -156,7 +157,7 @@ end
 end
 
 
-function construct_model()
+function construct_model(B)
     model = Model()
 
     set_dimension!(model, :time, model_time)
@@ -167,7 +168,7 @@ function construct_model()
     add_comp!(model, economy)
     add_comp!(model, welfare)
 
-    update_param!(model, :policy, :constant_prevention, 500)
+    update_param!(model, :policy, :constant_prevention, B)
     update_param!(model, :pandemic_risk, :mu_max, 0.1)
     update_param!(model, :pandemic_risk, :theta, 0.1)
     update_param!(model, :population, :N_max, 1000)
@@ -191,6 +192,39 @@ function construct_model()
     connect_param!(model, :welfare, :c, :economy, :c)
 
     return model
+end
+
+
+function run_model(B)
+    model = construct_model(B)
+    run(model)
+    prevention = B
+    pandemic_time = findfirst(pandemic -> pandemic == 1, model[:pandemic_risk, :pandemic])
+    welfare = model[:welfare, :W_intertemporal] |> last
+    return prevention, pandemic_time, welfare
+end
+
+
+function run_model_several_times(B::Number, n)
+    return run_model.([B for _ in 1:n])
+end
+
+
+function run_model_several_times(B::Array, n_each)
+    values_to_run_over = vcat([[b for _ in 1:n_each] for b in B]...)
+    return run_model.(values_to_run_over)
+end
+
+
+function run_model_several_times_and_summarise(B, n)
+    df = run_model_several_times(B, n) |> DataFrame
+    df = rename(df, [:prevention, :pandemic_time, :welfare])
+    df = groupby(df, :prevention)
+    df = combine(
+        df,
+        nrow => :n_runs,
+        [:pandemic_time, :welfare] .=> [minimum maximum median mean]
+    )
 end
 
 end # module pandprep

@@ -2,6 +2,7 @@ module pandprep
 
 using Mimi
 using Distributions
+using Roots
 
 export construct_model
 
@@ -9,6 +10,31 @@ const model_time = collect(2000:2500)
 
 time_range(from::Int, to::Int) = TimestepIndex(from):TimestepIndex(to)
 
+function u(consumption, risk_aversion, critical_level)
+    consumption = float(consumption)
+    utility = (
+        consumption^(1 - risk_aversion) / (1 - risk_aversion)
+        - critical_level^(1 - risk_aversion) / (1 - risk_aversion)
+    )
+    return utility
+end
+
+function f(B, theta, mu_max, rho, A, N_max, gamma, c_bar, delta, beta, Delta)
+    z = (
+            theta * B^(theta - 1) * (mu_max / (1 + B^theta)^2)
+            / (mu_max / (1 + B^theta) + rho)
+    )
+    u_hat = (
+        u(A - B / N_max, gamma, c_bar)
+        - u(A, gamma, c_bar) * (
+            (1 - delta)^beta * (1 - exp(-rho * Delta)) + exp(-rho * Delta)
+        )
+    )
+    image = z * u_hat - (1 / N_max) * (A - B / N_max)^(-gamma)
+    return image
+end
+
+find_zero(B -> f(B, 0.1, 0.1, 0.01, 8, 10, 2, 1, 0.4, 0.9, 35), 2)
 
 @defcomp population begin
     N = Variable(index = [time])
@@ -66,14 +92,6 @@ end
     end
 end
 
-
-function u(consumption::AbstractFloat, risk_aversion, critical_level)
-    utility = (
-        consumption^(1 - risk_aversion) / (1 - risk_aversion)
-        - critical_level^(1 - risk_aversion) / (1 - risk_aversion)
-    )
-    return utility
-end
 
 @defcomp welfare begin
     W = Variable(index = [time])                # welfare at time t

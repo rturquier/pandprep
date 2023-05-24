@@ -100,6 +100,7 @@ end
     pandemic = Variable(index = [time])   # indicator of whether there is a pandemic
 
     B = Parameter(index = [time])   # prevention
+    theta = Parameter()             # decreasing effectiveness of prevention
     mu_bar = Parameter()            # maximum hazard rate
 
     mu_first = Parameter()  # intial pandemic hazard rate
@@ -108,7 +109,7 @@ end
         if is_first(t)
             v.mu[t] = p.mu_first
         else
-            v.mu[t] = p.mu_bar / (1 + p.B[t-1])
+            v.mu[t] = p.mu_bar / (1 + p.B[t-1]^p.theta)
         end
 
         if is_first(t) || !any(v.pandemic[time_range(1, t.t - 1)] .== 1)
@@ -148,8 +149,9 @@ function construct_model()
     add_comp!(model, economy)
     add_comp!(model, welfare)
 
-    update_param!(model, :policy, :constant_prevention, 1)
+    update_param!(model, :policy, :constant_prevention, 500)
     update_param!(model, :pandemic_risk, :mu_bar, 0.1)
+    update_param!(model, :pandemic_risk, :theta, 0.1)
     update_param!(model, :population, :N_max, 1000)
     update_param!(model, :population, :pandemic_mortality, 0.3)
     update_param!(model, :population, :generation_span, 25.0)

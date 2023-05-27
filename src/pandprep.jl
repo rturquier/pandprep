@@ -171,7 +171,7 @@ function construct_model(B)
     update_param!(model, :policy, :constant_prevention, B)
     update_param!(model, :pandemic_risk, :mu_max, 0.2)
     update_param!(model, :pandemic_risk, :theta, 0.5)
-    update_param!(model, :population, :N_max, 1000)
+    update_param!(model, :population, :N_max, 10)
     update_param!(model, :population, :pandemic_mortality, 0.4)
     update_param!(model, :population, :generation_span, 25.0)
     update_param!(model, :economy, :A, 8.0)
@@ -229,10 +229,10 @@ end
 
 
 function plot_welfare_vs_prevention(simulations_df)
-    y_min = simulations_df.welfare_mean |> minimum |> floor
-    y_max = simulations_df.welfare_mean |> maximum |> ceil
+    y_min = simulations_df.welfare_mean |> minimum
+    y_max = simulations_df.welfare_mean |> maximum
     x_argmax = simulations_df[argmax(simulations_df.welfare_mean), :prevention]
-    x_max = simulations_df.prevention |> maximum |> ceil
+    x_max = simulations_df.prevention |> maximum
 
     plot = simulations_df |> @vlplot(
         mark={:line, point=true, color="#999", strokeWidth=1},
@@ -245,11 +245,11 @@ function plot_welfare_vs_prevention(simulations_df)
             :welfare_mean,
             title="Average welfare",
             scale={domain=[y_min, y_max], nice=false},
-            axis={values=[y_min, y_max], offset=10}
+            axis={values=[y_min, y_max], offset=10, format="d"}
         },
         config={
             view={width=500, height=250, stroke=nothing},
-            axisY={titleAngle=0, titleX=-38, titleY=-10, titleAlign="left"},
+            axisY={titleAngle=0, titleX=-25, titleY=-10, titleAlign="left"},
             axis={grid=false}
         }
     )
@@ -260,8 +260,8 @@ end
 "Optimal level of prevention according to the analytical model"
 B_star = find_zero(B -> f(B, 0.5, 0.2, 0.01, 8, 10, 2, 1, 0.4, 1, 25), 2)
 
-
-simulations_df = run_model_several_times_and_summarise(1, 10)
+prevention_values = [0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50]
+simulations_df = run_model_several_times_and_summarise(prevention_values, 3)
 plot_welfare_vs_prevention(simulations_df)
 
 end # module pandprep

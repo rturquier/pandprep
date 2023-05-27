@@ -4,6 +4,7 @@ using Mimi
 using Distributions
 using Roots
 using DataFrames
+using VegaLite
 
 export construct_model
 
@@ -226,5 +227,40 @@ function run_model_several_times_and_summarise(B, n)
         [:pandemic_time, :welfare] .=> [minimum maximum median mean]
     )
 end
+
+
+function plot_welfare_vs_prevention(simulations_df)
+    y_min = simulations_df.welfare_mean |> minimum |> floor
+    y_max = simulations_df.welfare_mean |> maximum |> ceil
+    x_argmax = simulations_df[argmax(simulations_df.welfare_mean), :prevention]
+    x_max = simulations_df.prevention |> maximum |> ceil
+
+    plot = simulations_df |>
+            @vlplot(
+                # mark={:point, filled=true, color="#19D"},
+                mark={:line, point=true, color="#999", strokeWidth=1},
+                x={
+                    :prevention,
+                    title="Prevention",
+                    axis={offset=7, values=[0, x_argmax, x_max]}
+                },
+                y={
+                    :welfare_mean,
+                    title="Average welfare",
+                    scale={domain=[y_min, y_max], nice=false},
+                    axis={values=[y_min, y_max], offset=10}
+                },
+                config={
+                    view={width=500, height=250, stroke=nothing},
+                    axisY={titleAngle=0, titleX=-38, titleY=-10, titleAlign="left"},
+                    axis={grid=false}
+                }
+            )
+    return plot
+end
+
+
+simulations_df = run_model_several_times_and_summarise(collect(0:1:3), 2)
+plot_welfare_vs_prevention(simulations_df)
 
 end # module pandprep

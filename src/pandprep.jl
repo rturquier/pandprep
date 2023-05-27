@@ -159,7 +159,7 @@ end
 end
 
 
-function construct_model(B, multiple_pandemics)
+function construct_model(B, parameters::Dict)
     model = Model()
 
     set_dimension!(model, :time, model_time)
@@ -171,20 +171,20 @@ function construct_model(B, multiple_pandemics)
     add_comp!(model, welfare)
 
     update_param!(model, :policy, :constant_prevention, B)
-    update_param!(model, :policy, :multiple, multiple_pandemics)
-    update_param!(model, :pandemic_risk, :mu_max, 0.2)
-    update_param!(model, :pandemic_risk, :theta, 0.5)
-    update_param!(model, :pandemic_risk, :multiple, multiple_pandemics)
-    update_param!(model, :population, :N_max, 10)
-    update_param!(model, :population, :pandemic_mortality, 0.4)
-    update_param!(model, :population, :generation_span, 25.0)
-    update_param!(model, :economy, :A, 8.0)
-    update_param!(model, :welfare, :gamma, 2.0)
-    update_param!(model, :welfare, :c_bar, 1.0)
-    update_param!(model, :welfare, :beta, 1.0)
-    update_param!(model, :welfare, :rho, 0.01)
+    update_param!(model, :policy, :multiple, parameters["multiple"])
+    update_param!(model, :pandemic_risk, :mu_first, parameters["mu_first"])
+    update_param!(model, :pandemic_risk, :mu_max, parameters["mu_max"])
+    update_param!(model, :pandemic_risk, :theta, parameters["theta"])
+    update_param!(model, :pandemic_risk, :multiple, parameters["multiple"])
+    update_param!(model, :population, :N_max, parameters["N_max"])
+    update_param!(model, :population, :pandemic_mortality, parameters["pandemic_mortality"])
+    update_param!(model, :population, :generation_span, parameters["generation_span"])
+    update_param!(model, :economy, :A, parameters["A"])
+    update_param!(model, :welfare, :gamma, parameters["gamma"])
+    update_param!(model, :welfare, :c_bar, parameters["c_bar"])
+    update_param!(model, :welfare, :beta, parameters["beta"])
+    update_param!(model, :welfare, :rho, parameters["rho"])
 
-    update_param!(model, :pandemic_risk, :mu_first, 0.0)
 
     connect_param!(model, :pandemic_risk, :B, :policy, :B)
     connect_param!(model, :economy, :B, :policy, :B)
@@ -199,8 +199,8 @@ function construct_model(B, multiple_pandemics)
 end
 
 
-function run_model(B; multiple_pandemics=false)
-    model = construct_model(B, multiple_pandemics)
+function run_model(B, parameters)
+    model = construct_model(B, parameters)
     run(model)
     prevention = B
     pandemic_time = findfirst(pandemic -> pandemic == 1, model[:pandemic_risk, :pandemic])
@@ -209,19 +209,19 @@ function run_model(B; multiple_pandemics=false)
 end
 
 
-function run_model_several_times(B::Number, n)
-    return run_model.([B for _ in 1:n])
+function run_model_several_times(B::Number, parameters, n)
+    return (x -> run_model(x, parameters)).([B for _ in 1:n])
 end
 
 
-function run_model_several_times(B::Array, n_each)
+function run_model_several_times(B::Array, parameters, n_each)
     values_to_run_over = vcat([[b for _ in 1:n_each] for b in B]...)
-    return run_model.(values_to_run_over)
+    return (x -> run_model(x, parameters)).(values_to_run_over)
 end
 
 
-function run_model_several_times_and_summarise(B, n)
-    df = run_model_several_times(B, n) |> DataFrame
+function run_and_summarise(B, parameters, n)
+    df = run_model_several_times(B, parameters, n) |> DataFrame
     df = rename(df, [:prevention, :pandemic_time, :welfare])
     df = groupby(df, :prevention)
     df = combine(
@@ -264,8 +264,22 @@ end
 "Optimal level of prevention according to the analytical model"
 B_star = find_zero(B -> f(B, 0.5, 0.2, 0.01, 8, 10, 2, 1, 0.4, 1, 25), 2)
 
+default_parameters = Dict(
+    "multiple" => false,
+    "mu_first" => 0.0,
+    "mu_max" => 0.2,
+    "theta" => 0.5,
+    "N_max" => 10,
+    "pandemic_mortality" => 0.4,
+    "generation_span" => 25.0,
+    "A" => 8.0,
+    "gamma" => 2.0,
+    "c_bar" => 1.0,
+    "beta" => 1.0,
+    "rho" => 0.01,
+)
 prevention_values = [0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50]
-simulations_df = run_model_several_times_and_summarise(prevention_values, 3)
+simulations_df = run_and_summarise(prevention_values, default_parameters, 1)
 plot_welfare_vs_prevention(simulations_df)
 
 end # module pandprep

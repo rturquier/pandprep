@@ -122,7 +122,8 @@ end
     theta = Parameter()             # decreasing effectiveness of prevention
     mu_max = Parameter()            # maximum hazard rate
 
-    mu_first = Parameter()  # intial pandemic hazard rate
+    mu_first = Parameter()        # intial pandemic hazard rate
+    multiple = Parameter{Bool}()  # whether there are multiple pandemics
 
     function run_timestep(p, v, d, t)
         if is_first(t)
@@ -131,7 +132,7 @@ end
             v.mu[t] = p.mu_max / (1 + p.B[t-1]^p.theta)
         end
 
-        if is_first(t) || !any(v.pandemic[time_range(1, t.t - 1)] .== 1)
+        if is_first(t) || p.multiple || !any(v.pandemic[time_range(1, t.t - 1)] .== 1)
             hazard = Bernoulli(v.mu[t])
             v.pandemic[t] = rand(hazard, 1)[1]
         else
@@ -146,9 +147,10 @@ end
 
     pandemic = Parameter(index = [time])  # pandemic history
     constant_prevention = Parameter()     # pre-pandemic level of prevention
+    multiple = Parameter{Bool}()          # whether there are multiple pandemics
 
     function run_timestep(p, v, d, t)
-        if is_first(t) || all(p.pandemic[time_range(1, t.t - 1)] .== 0)
+        if is_first(t) || p.multiple || all(p.pandemic[time_range(1, t.t - 1)] .== 0)
             v.B[t] = p.constant_prevention
         else
             v.B[t] = 0
@@ -157,7 +159,7 @@ end
 end
 
 
-function construct_model(B)
+function construct_model(B, multiple_pandemics)
     model = Model()
 
     set_dimension!(model, :time, model_time)
@@ -169,8 +171,10 @@ function construct_model(B)
     add_comp!(model, welfare)
 
     update_param!(model, :policy, :constant_prevention, B)
+    update_param!(model, :policy, :multiple, multiple_pandemics)
     update_param!(model, :pandemic_risk, :mu_max, 0.2)
     update_param!(model, :pandemic_risk, :theta, 0.5)
+    update_param!(model, :pandemic_risk, :multiple, multiple_pandemics)
     update_param!(model, :population, :N_max, 10)
     update_param!(model, :population, :pandemic_mortality, 0.4)
     update_param!(model, :population, :generation_span, 25.0)
@@ -195,8 +199,8 @@ function construct_model(B)
 end
 
 
-function run_model(B)
-    model = construct_model(B)
+function run_model(B; multiple_pandemics=false)
+    model = construct_model(B, multiple_pandemics)
     run(model)
     prevention = B
     pandemic_time = findfirst(pandemic -> pandemic == 1, model[:pandemic_risk, :pandemic])

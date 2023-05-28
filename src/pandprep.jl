@@ -318,14 +318,9 @@ plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_5000_runs.
 
 default_parameters_multiple = copy(default_parameters)
 default_parameters_multiple["multiple"] = true
-run_and_save_simulation([0, 5, 10, 15, 20, 25, 30, 50], default_parameters_multiple, 2)
+run_and_save_simulation([0, 5, 10, 15, 20, 25, 30, 50], default_parameters_multiple, 500)
 joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
-    plot_welfare_vs_prevention |>
+    (it -> plot_welfare_vs_prevention(it; x=:b)) |>
     save(joinpath("images", "multiple_pandemics_500_runs.svg"))
-
-joinpath("data", "simulations_multiple_pandemics_2_runs.csv") |>
-    CSV.File |>
-    DataFrame |>
-    (it -> plot_welfare_vs_prevention(it; x=:b))
 
 end # module pandprep

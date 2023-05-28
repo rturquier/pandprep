@@ -80,8 +80,6 @@ end
 
 @defcomp economy begin
     Y = Variable(index = [time])   # production
-    C = Variable(index = [time])   # consumption
-    c = Variable(index = [time])   # per-capita consumption
 
     N = Parameter(index = [time])  # population
     B = Parameter(index = [time])  # prevention
@@ -89,25 +87,29 @@ end
 
     function run_timestep(p, v, d, t)
         v.Y[t] = p.A * p.N[t]
-        v.C[t] = v.Y[t] - p.B[t]
-        v.c[t] = v.C[t] / p.N[t]
     end
 end
 
 
 @defcomp welfare begin
+    C = Variable(index = [time])                # consumption
+    c = Variable(index = [time])                # per-capita consumption
     W = Variable(index = [time])                # welfare at time t
     W_intertemporal = Variable(index = [time])  # intertemporal welfare
 
     N = Parameter(index = [time])  # population
-    c = Parameter(index = [time])  # per-capita consumption
+    Y = Parameter(index = [time])  # production
+    B = Parameter(index = [time])  # prevention
+
     gamma = Parameter()            # coefficient of relative aversion
     c_bar = Parameter()            # critical level of utility
     beta = Parameter()             # population ethics parameter
     rho = Parameter()              # utility discount rate
 
     function run_timestep(p, v, d, t)
-        v.W[t] = p.N[t]^p.beta * u(p.c[t], p.gamma, p.c_bar)
+        v.C[t] = p.Y[t] - p.B[t]
+        v.c[t] = v.C[t] / p.N[t]
+        v.W[t] = p.N[t]^p.beta * u(v.c[t], p.gamma, p.c_bar)
 
         utility_discount_factors = [exp(-p.rho * date) for date in 0:(t.t - 1)]
         v.W_intertemporal[t] = sum(utility_discount_factors .* v.W[time_range(1, t.t)])
@@ -145,16 +147,24 @@ end
 
 @defcomp policy begin
     B = Variable(index = [time])         # prevention
+    b = Variable(index = [time])         # prevention as a share of total income
 
     pandemic = Parameter(index = [time])  # pandemic history
     constant_prevention = Parameter()     # pre-pandemic level of prevention
     multiple = Parameter{Bool}()          # whether there are multiple pandemics
 
+    Y = Parameter(index = [time])  # current population
+
     function run_timestep(p, v, d, t)
-        if is_first(t) || p.multiple || all(p.pandemic[time_range(1, t.t - 1)] .== 0)
+        if p.multiple
+            v.b[t] = p.constant_prevention / p.Y[TimestepIndex(1)]
+            v.B[t] = v.b[t] * p.Y[t]
+        elseif all(p.pandemic[time_range(1, t.t - 1)] .== 0)
             v.B[t] = p.constant_prevention
+            v.b[t] = v.B[t] / p.Y[t]
         else
             v.B[t] = 0
+            v.b[t] = 0
         end
     end
 end
@@ -165,10 +175,10 @@ function construct_model(B, parameters::Dict)
 
     set_dimension!(model, :time, model_time)
 
-    add_comp!(model, policy)
     add_comp!(model, pandemic_risk)
     add_comp!(model, population)
     add_comp!(model, economy)
+    add_comp!(model, policy)
     add_comp!(model, welfare)
 
     update_param!(model, :policy, :constant_prevention, B)
@@ -191,10 +201,11 @@ function construct_model(B, parameters::Dict)
     connect_param!(model, :economy, :B, :policy, :B)
     connect_param!(model, :population, :pandemic, :pandemic_risk, :pandemic)
     connect_param!(model, :policy, :pandemic, :pandemic_risk, :pandemic)
+    connect_param!(model, :policy, :Y, :economy, :Y)
     connect_param!(model, :economy, :N, :population, :N)
     connect_param!(model, :welfare, :N, :population, :N)
-    connect_param!(model, :welfare, :c, :economy, :c)
-    connect_param!(model, :welfare, :c, :economy, :c)
+    connect_param!(model, :welfare, :Y, :economy, :Y)
+    connect_param!(model, :welfare, :B, :policy, :B)
 
     return model
 end

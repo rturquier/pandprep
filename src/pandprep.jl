@@ -38,6 +38,34 @@ function f(B, theta, mu_max, rho, A, N_max, gamma, c_bar, delta, beta, Delta)
 end
 
 
+@defcomp pandemic_risk begin
+    mu = Variable(index = [time])         # pandemic hazard rate
+    pandemic = Variable(index = [time])   # indicator of whether there is a pandemic
+
+    B = Parameter(index = [time])   # prevention
+    theta = Parameter()             # decreasing effectiveness of prevention
+    mu_max = Parameter()            # maximum hazard rate
+
+    mu_first = Parameter()        # intial pandemic hazard rate
+    multiple = Parameter{Bool}()  # whether there are multiple pandemics
+
+    function run_timestep(p, v, d, t)
+        if is_first(t)
+            v.mu[t] = p.mu_first
+        else
+            v.mu[t] = p.mu_max / (1 + p.B[t-1]^p.theta)
+        end
+
+        if is_first(t) || p.multiple || !any(v.pandemic[time_range(1, t.t - 1)] .== 1)
+            hazard = Bernoulli(v.mu[t])
+            v.pandemic[t] = rand(hazard, 1)[1]
+        else
+            v.pandemic[t] = 0
+        end
+    end
+end
+
+
 @defcomp population begin
     N = Variable(index = [time])
 
@@ -91,6 +119,31 @@ end
 end
 
 
+@defcomp policy begin
+    B = Variable(index = [time])         # prevention
+    b = Variable(index = [time])         # prevention as a share of total income
+
+    pandemic = Parameter(index = [time])  # pandemic history
+    constant_prevention = Parameter()     # pre-pandemic level of prevention
+    multiple = Parameter{Bool}()          # whether there are multiple pandemics
+
+    Y = Parameter(index = [time])  # current population
+
+    function run_timestep(p, v, d, t)
+        if p.multiple
+            v.b[t] = p.constant_prevention / p.Y[TimestepIndex(1)]
+            v.B[t] = v.b[t] * p.Y[t]
+        elseif all(p.pandemic[time_range(1, t.t - 1)] .== 0)
+            v.B[t] = p.constant_prevention
+            v.b[t] = v.B[t] / p.Y[t]
+        else
+            v.B[t] = 0
+            v.b[t] = 0
+        end
+    end
+end
+
+
 @defcomp welfare begin
     C = Variable(index = [time])                # consumption
     c = Variable(index = [time])                # per-capita consumption
@@ -117,59 +170,6 @@ end
 end
 
 
-@defcomp pandemic_risk begin
-    mu = Variable(index = [time])         # pandemic hazard rate
-    pandemic = Variable(index = [time])   # indicator of whether there is a pandemic
-
-    B = Parameter(index = [time])   # prevention
-    theta = Parameter()             # decreasing effectiveness of prevention
-    mu_max = Parameter()            # maximum hazard rate
-
-    mu_first = Parameter()        # intial pandemic hazard rate
-    multiple = Parameter{Bool}()  # whether there are multiple pandemics
-
-    function run_timestep(p, v, d, t)
-        if is_first(t)
-            v.mu[t] = p.mu_first
-        else
-            v.mu[t] = p.mu_max / (1 + p.B[t-1]^p.theta)
-        end
-
-        if is_first(t) || p.multiple || !any(v.pandemic[time_range(1, t.t - 1)] .== 1)
-            hazard = Bernoulli(v.mu[t])
-            v.pandemic[t] = rand(hazard, 1)[1]
-        else
-            v.pandemic[t] = 0
-        end
-    end
-end
-
-
-@defcomp policy begin
-    B = Variable(index = [time])         # prevention
-    b = Variable(index = [time])         # prevention as a share of total income
-
-    pandemic = Parameter(index = [time])  # pandemic history
-    constant_prevention = Parameter()     # pre-pandemic level of prevention
-    multiple = Parameter{Bool}()          # whether there are multiple pandemics
-
-    Y = Parameter(index = [time])  # current population
-
-    function run_timestep(p, v, d, t)
-        if p.multiple
-            v.b[t] = p.constant_prevention / p.Y[TimestepIndex(1)]
-            v.B[t] = v.b[t] * p.Y[t]
-        elseif all(p.pandemic[time_range(1, t.t - 1)] .== 0)
-            v.B[t] = p.constant_prevention
-            v.b[t] = v.B[t] / p.Y[t]
-        else
-            v.B[t] = 0
-            v.b[t] = 0
-        end
-    end
-end
-
-
 function construct_model(B, parameters::Dict)
     model = Model()
 
@@ -181,8 +181,6 @@ function construct_model(B, parameters::Dict)
     add_comp!(model, policy)
     add_comp!(model, welfare)
 
-    update_param!(model, :policy, :constant_prevention, B)
-    update_param!(model, :policy, :multiple, parameters["multiple"])
     update_param!(model, :pandemic_risk, :mu_first, parameters["mu_first"])
     update_param!(model, :pandemic_risk, :mu_max, parameters["mu_max"])
     update_param!(model, :pandemic_risk, :theta, parameters["theta"])
@@ -191,18 +189,19 @@ function construct_model(B, parameters::Dict)
     update_param!(model, :population, :pandemic_mortality, parameters["pandemic_mortality"])
     update_param!(model, :population, :generation_span, parameters["generation_span"])
     update_param!(model, :economy, :A, parameters["A"])
+    update_param!(model, :policy, :constant_prevention, B)
+    update_param!(model, :policy, :multiple, parameters["multiple"])
     update_param!(model, :welfare, :gamma, parameters["gamma"])
     update_param!(model, :welfare, :c_bar, parameters["c_bar"])
     update_param!(model, :welfare, :beta, parameters["beta"])
     update_param!(model, :welfare, :rho, parameters["rho"])
 
-
     connect_param!(model, :pandemic_risk, :B, :policy, :B)
-    connect_param!(model, :economy, :B, :policy, :B)
     connect_param!(model, :population, :pandemic, :pandemic_risk, :pandemic)
+    connect_param!(model, :economy, :B, :policy, :B)
+    connect_param!(model, :economy, :N, :population, :N)
     connect_param!(model, :policy, :pandemic, :pandemic_risk, :pandemic)
     connect_param!(model, :policy, :Y, :economy, :Y)
-    connect_param!(model, :economy, :N, :population, :N)
     connect_param!(model, :welfare, :N, :population, :N)
     connect_param!(model, :welfare, :Y, :economy, :Y)
     connect_param!(model, :welfare, :B, :policy, :B)

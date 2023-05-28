@@ -286,14 +286,20 @@ default_parameters = Dict(
     "rho" => 0.01,
 )
 
-function run_and_save_simulation_with_one_pandemic()
-    prevention_values = [0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50]
-    simulations_df = run_and_summarise(prevention_values, default_parameters, 500)
-    CSV.write(joinpath("data", "simulations_one_pandemic.csv"), simulations_df)
+function run_and_save_simulation(prevention_values, parameters, n_each)
+    n_pandemics = parameters["multiple"] ? "multiple_pandemics" : "one_pandemic"
+    save_path = joinpath("data", "simulations_$(n_pandemics)_$(n_each)_runs.csv")
+    simulations_df = run_and_summarise(prevention_values, parameters, n_each)
+    CSV.write(save_path, simulations_df)
     return nothing
 end
 
-run_and_save_simulation_with_one_pandemic()
-plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic.csv"))
+run_and_save_simulation([0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50], default_parameters, 500)
+plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>
+    save(joinpath("images", "one_pandemic_500_runs.svg"))
+
+run_and_save_simulation([5, 8, B_star, 10, 11, 15], default_parameters, 5000)
+plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_5000_runs.csv")) |>
+    save(joinpath("images", "one_pandemic_5000_runs.svg"))
 
 end # module pandprep

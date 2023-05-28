@@ -4,6 +4,7 @@ using Mimi
 using Distributions
 using Roots
 using DataFrames
+using CSV
 using VegaLite
 
 export construct_model
@@ -232,7 +233,7 @@ function run_and_summarise(B, parameters, n)
 end
 
 
-function plot_welfare_vs_prevention(simulations_df)
+function plot_welfare_vs_prevention(simulations_df::DataFrame)
     y_min = simulations_df.welfare_mean |> minimum
     y_max = simulations_df.welfare_mean |> maximum
     x_argmax = simulations_df[argmax(simulations_df.welfare_mean), :prevention]
@@ -261,6 +262,12 @@ function plot_welfare_vs_prevention(simulations_df)
 end
 
 
+function plot_welfare_vs_prevention(path_to_simulations_df::String)
+    simulations_df = CSV.File(path_to_simulations_df) |> DataFrame
+    return plot_welfare_vs_prevention(simulations_df)
+end
+
+
 "Optimal level of prevention according to the analytical model"
 B_star = find_zero(B -> f(B, 0.5, 0.2, 0.01, 8, 10, 2, 1, 0.4, 1, 25), 2)
 
@@ -278,8 +285,15 @@ default_parameters = Dict(
     "beta" => 1.0,
     "rho" => 0.01,
 )
-prevention_values = [0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50]
-simulations_df = run_and_summarise(prevention_values, default_parameters, 1)
-plot_welfare_vs_prevention(simulations_df)
+
+function run_and_save_simulation_with_one_pandemic()
+    prevention_values = [0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50]
+    simulations_df = run_and_summarise(prevention_values, default_parameters, 500)
+    CSV.write(joinpath("data", "simulations_one_pandemic.csv"), simulations_df)
+    return nothing
+end
+
+run_and_save_simulation_with_one_pandemic()
+plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic.csv"))
 
 end # module pandprep

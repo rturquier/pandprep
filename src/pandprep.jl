@@ -236,15 +236,16 @@ end
 function plot_welfare_vs_prevention(simulations_df::DataFrame)
     y_min = simulations_df.welfare_mean |> minimum
     y_max = simulations_df.welfare_mean |> maximum
-    x_argmax = simulations_df[argmax(simulations_df.welfare_mean), :prevention]
+    x_min = simulations_df.prevention |> minimum
     x_max = simulations_df.prevention |> maximum
+    x_argmax = simulations_df[argmax(simulations_df.welfare_mean), :prevention]
 
     plot = simulations_df |> @vlplot(
         mark={:line, point=true, color="#999", strokeWidth=1},
         x={
             :prevention,
             title="Prevention",
-            axis={offset=7, values=[0, x_argmax, x_max]}
+            axis={offset=7, values=[x_min, x_argmax, x_max]}
         },
         y={
             :welfare_mean,

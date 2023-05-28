@@ -269,6 +269,15 @@ function plot_welfare_vs_prevention(path_to_simulations_df::String)
 end
 
 
+function run_and_save_simulation(prevention_values, parameters, n_each)
+    n_pandemics = parameters["multiple"] ? "multiple_pandemics" : "one_pandemic"
+    save_path = joinpath("data", "simulations_$(n_pandemics)_$(n_each)_runs.csv")
+    simulations_df = run_and_summarise(prevention_values, parameters, n_each)
+    CSV.write(save_path, simulations_df)
+    return nothing
+end
+
+
 "Optimal level of prevention according to the analytical model"
 B_star = find_zero(B -> f(B, 0.5, 0.2, 0.01, 8, 10, 2, 1, 0.4, 1, 25), 2)
 
@@ -287,14 +296,6 @@ default_parameters = Dict(
     "rho" => 0.01,
 )
 
-function run_and_save_simulation(prevention_values, parameters, n_each)
-    n_pandemics = parameters["multiple"] ? "multiple_pandemics" : "one_pandemic"
-    save_path = joinpath("data", "simulations_$(n_pandemics)_$(n_each)_runs.csv")
-    simulations_df = run_and_summarise(prevention_values, parameters, n_each)
-    CSV.write(save_path, simulations_df)
-    return nothing
-end
-
 run_and_save_simulation([0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50], default_parameters, 500)
 plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>
     save(joinpath("images", "one_pandemic_500_runs.svg"))
@@ -302,5 +303,12 @@ plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.c
 run_and_save_simulation([5, 8, B_star, 10, 11, 15], default_parameters, 5000)
 plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_5000_runs.csv")) |>
     save(joinpath("images", "one_pandemic_5000_runs.svg"))
+
+default_parameters_multiple = copy(default_parameters)
+default_parameters_multiple["multiple"] = true
+run_and_save_simulation([0, 5, 10, 15, 20, 25, 30, 50], default_parameters_multiple, 500)
+joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
+    plot_welfare_vs_prevention |>
+    save(joinpath("images", "multiple_pandemics_500_runs.svg"))
 
 end # module pandprep

@@ -233,29 +233,31 @@ end
 
 function run_and_summarise(B, parameters, n)
     df = run_model_several_times(B, parameters, n) |> DataFrame
-    df = rename(df, [:prevention, :pandemic_time, :welfare])
-    df = groupby(df, :prevention)
+    df = rename(df, [:B, :pandemic_time, :welfare])
+    df = groupby(df, :B)
     df = combine(
         df,
         nrow => :n_runs,
         [:pandemic_time, :welfare] .=> [minimum maximum median mean]
     )
+    df = transform(df, :B => (x -> x / (parameters["A"] * parameters["N_max"]))  => :b)
 end
 
-
-function plot_welfare_vs_prevention(simulations_df::DataFrame)
+function plot_welfare_vs_prevention(simulations_df::DataFrame; x=:B)
     y_min = simulations_df.welfare_mean |> minimum
     y_max = simulations_df.welfare_mean |> maximum
-    x_min = simulations_df.prevention |> minimum
-    x_max = simulations_df.prevention |> maximum
-    x_argmax = simulations_df[argmax(simulations_df.welfare_mean), :prevention]
+    x_min = simulations_df[:, x] |> minimum
+    x_max = simulations_df[:, x] |> maximum
+    x_argmax = simulations_df[argmax(simulations_df.welfare_mean), x]
+    x_format = (x == :b) ? "%" : "s"  # format as percenta if prevention is as a share of Y
 
     plot = simulations_df |> @vlplot(
         mark={:line, point=true, color="#999", strokeWidth=1},
         x={
-            :prevention,
+            x,
             title="Prevention",
-            axis={offset=7, values=[x_min, x_argmax, x_max]}
+            scale={nice=false},
+            axis={offset=7, values=[x_min, x_argmax, x_max], format=x_format, labelFlush=false}
         },
         y={
             :welfare_mean,
@@ -273,9 +275,9 @@ function plot_welfare_vs_prevention(simulations_df::DataFrame)
 end
 
 
-function plot_welfare_vs_prevention(path_to_simulations_df::String)
+function plot_welfare_vs_prevention(path_to_simulations_df::String; x=:B)
     simulations_df = CSV.File(path_to_simulations_df) |> DataFrame
-    return plot_welfare_vs_prevention(simulations_df)
+    return plot_welfare_vs_prevention(simulations_df; x=x)
 end
 
 
@@ -316,9 +318,14 @@ plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_5000_runs.
 
 default_parameters_multiple = copy(default_parameters)
 default_parameters_multiple["multiple"] = true
-run_and_save_simulation([0, 5, 10, 15, 20, 25, 30, 50], default_parameters_multiple, 500)
+run_and_save_simulation([0, 5, 10, 15, 20, 25, 30, 50], default_parameters_multiple, 2)
 joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
     plot_welfare_vs_prevention |>
     save(joinpath("images", "multiple_pandemics_500_runs.svg"))
+
+joinpath("data", "simulations_multiple_pandemics_2_runs.csv") |>
+    CSV.File |>
+    DataFrame |>
+    (it -> plot_welfare_vs_prevention(it; x=:b))
 
 end # module pandprep

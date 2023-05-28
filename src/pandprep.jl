@@ -323,4 +323,9 @@ joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
     (it -> plot_welfare_vs_prevention(it; x=:b)) |>
     save(joinpath("images", "multiple_pandemics_500_runs.svg"))
 
+run_and_save_simulation([15, 20, 25, 30, 35], default_parameters_multiple, 5000)
+joinpath("data", "simulations_multiple_pandemics_5000_runs.csv") |>
+    (it -> plot_welfare_vs_prevention(it; x=:b)) |>
+    save(joinpath("images", "multiple_pandemics_5000_runs.svg"))
+
 end # module pandprep

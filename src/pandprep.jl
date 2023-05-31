@@ -368,28 +368,38 @@ default_parameters = Dict(
     "rho" => 0.01,
 )
 
+function reproduce()
+    plot_expected_welfare(default_parameters) |>
+        save(joinpath("images", "expected_welfare.svg"))
 
-plot_expected_welfare(default_parameters) |>
-    save(joinpath("images", "expected_welfare.svg"))
+    run_and_save_simulation(
+        [0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50],
+        default_parameters,
+        500
+    )
+    plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>
+        save(joinpath("images", "one_pandemic_500_runs.svg"))
 
-run_and_save_simulation([0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50], default_parameters, 500)
-plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>
-    save(joinpath("images", "one_pandemic_500_runs.svg"))
+    run_and_save_simulation([5, 8, B_star, 10, 11, 15], default_parameters, 5000)
+    joinpath("data", "simulations_one_pandemic_5000_runs.csv") |>
+        plot_welfare_vs_prevention |>
+        save(joinpath("images", "one_pandemic_5000_runs.svg"))
 
-run_and_save_simulation([5, 8, B_star, 10, 11, 15], default_parameters, 5000)
-plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_5000_runs.csv")) |>
-    save(joinpath("images", "one_pandemic_5000_runs.svg"))
+    default_parameters_multiple = copy(default_parameters)
+    default_parameters_multiple["multiple"] = true
+    run_and_save_simulation(
+        [0, 5, 10, 15, 20, 25, 30, 50],
+        default_parameters_multiple,
+        500
+    )
+    joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
+        (it -> plot_welfare_vs_prevention(it; x=:b)) |>
+        save(joinpath("images", "multiple_pandemics_500_runs.svg"))
 
-default_parameters_multiple = copy(default_parameters)
-default_parameters_multiple["multiple"] = true
-run_and_save_simulation([0, 5, 10, 15, 20, 25, 30, 50], default_parameters_multiple, 500)
-joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
-    (it -> plot_welfare_vs_prevention(it; x=:b)) |>
-    save(joinpath("images", "multiple_pandemics_500_runs.svg"))
-
-run_and_save_simulation([15, 20, 25, 30, 35], default_parameters_multiple, 5000)
-joinpath("data", "simulations_multiple_pandemics_5000_runs.csv") |>
-    (it -> plot_welfare_vs_prevention(it; x=:b)) |>
-    save(joinpath("images", "multiple_pandemics_5000_runs.svg"))
+    run_and_save_simulation([15, 20, 25, 30, 35], default_parameters_multiple, 5000)
+    joinpath("data", "simulations_multiple_pandemics_5000_runs.csv") |>
+        (it -> plot_welfare_vs_prevention(it; x=:b)) |>
+        save(joinpath("images", "multiple_pandemics_5000_runs.svg"))
+end
 
 end # module pandprep

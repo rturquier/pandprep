@@ -3,3 +3,4 @@ images/*
 
 # macOS
 .DS_Store
+.vscode/

@@ -37,6 +37,66 @@ function f(B, theta, mu_max, rho, A, N_max, gamma, c_bar, delta, beta, Delta)
     return image
 end
 
+function expected_welfare(B, parameters)
+    expected_welfare = (
+        parameters["N_max"]^parameters["beta"]
+        / (
+            parameters["mu_max"] / (1 + B^parameters["theta"])
+            + parameters["rho"]
+        )
+        * (
+            u(
+                parameters["A"] - B / parameters["N_max"],
+                parameters["gamma"],
+                parameters["c_bar"]
+            )
+            + (
+                1 / parameters["rho"]
+                * parameters["mu_max"] / (1 + B^parameters["theta"])
+                * u(parameters["A"], parameters["gamma"], parameters["c_bar"])
+                * (
+                    (1 - parameters["delta"])^parameters["beta"]
+                    * (1 - exp(-parameters["rho"] * parameters["Delta"]))
+                    + exp(-parameters["rho"] * parameters["Delta"])
+                )
+            )
+        )
+    )
+    return expected_welfare
+end
+
+
+function plot_expected_welfare(parameters)
+    points_x = collect(0:0.01:50)
+    points_y = (B -> expected_welfare(B, parameters)).(points_x)
+    data = DataFrame([points_x, points_y], ["x", "y"])
+    y_min = minimum(points_y)
+    y_max = maximum(points_y)
+    x_argmax = points_x[argmax(points_y)]
+
+    plot = data |> @vlplot(
+        mark=:line,
+        x={
+                "x:q",
+                title="Prevention",
+                scale={nice=false},
+                axis={offset=7, values=[0, x_argmax, 50], format=".3"}
+            },
+        y={
+            "y:q",
+            title="Expected welfare",
+            scale={domain=[y_min, y_max], nice=false},
+            axis={values=[y_min, y_max], offset=10, format="d"}
+        },
+        config={
+                view={width=500, height=250, stroke=nothing},
+                axisY={titleAngle=0, titleX=-25, titleY=-10, titleAlign="left"},
+                axis={grid=false}
+            }
+    )
+    return plot
+end
+
 
 @defcomp pandemic_risk begin
     mu = Variable(index = [time])         # pandemic hazard rate
@@ -186,8 +246,8 @@ function construct_model(B, parameters::Dict)
     update_param!(model, :pandemic_risk, :theta, parameters["theta"])
     update_param!(model, :pandemic_risk, :multiple, parameters["multiple"])
     update_param!(model, :population, :N_max, parameters["N_max"])
-    update_param!(model, :population, :pandemic_mortality, parameters["pandemic_mortality"])
-    update_param!(model, :population, :generation_span, parameters["generation_span"])
+    update_param!(model, :population, :pandemic_mortality, parameters["delta"])
+    update_param!(model, :population, :generation_span, parameters["Delta"])
     update_param!(model, :economy, :A, parameters["A"])
     update_param!(model, :policy, :constant_prevention, B)
     update_param!(model, :policy, :multiple, parameters["multiple"])
@@ -299,14 +359,18 @@ default_parameters = Dict(
     "mu_max" => 0.2,
     "theta" => 0.5,
     "N_max" => 10,
-    "pandemic_mortality" => 0.4,
-    "generation_span" => 25.0,
+    "delta" => 0.4,
+    "Delta" => 25.0,
     "A" => 8.0,
     "gamma" => 2.0,
     "c_bar" => 1.0,
     "beta" => 1.0,
     "rho" => 0.01,
 )
+
+
+plot_expected_welfare(default_parameters) |>
+    save(joinpath("images", "expected_welfare.svg"))
 
 run_and_save_simulation([0, 5, 8, 9.46, 10, 11, 15, 20, 30, 50], default_parameters, 500)
 plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>

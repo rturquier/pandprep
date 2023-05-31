@@ -303,25 +303,45 @@ function run_and_summarise(B, parameters, n)
     df = transform(df, :B => (x -> x / (parameters["A"] * parameters["N_max"]))  => :b)
 end
 
-function plot_welfare_vs_prevention(simulations_df::DataFrame; x=:B)
-    y_min = simulations_df.welfare_mean |> minimum
-    y_max = simulations_df.welfare_mean |> maximum
+function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
+    y_min = simulations_df[:, y] |> minimum
+    y_max = simulations_df[:, y] |> maximum
     x_min = simulations_df[:, x] |> minimum
     x_max = simulations_df[:, x] |> maximum
-    x_argmax = simulations_df[argmax(simulations_df.welfare_mean), x]
-    x_format = (x == :b) ? "%" : "s"  # format as percenta if prevention is as a share of Y
+    x_argmax = simulations_df[argmax(simulations_df[:, y]), x]
+
+    if x in [:b, :rho]
+        x_format = "%"
+    else
+        x_format = "s"
+    end
+
+    if x==:rho
+        x_title = "Utility discount rate"
+        y_title = "Best prevention level"
+        x_scale_type = "log"
+    else
+        x_title = "Prevention"
+        y_title = "Expected welfare"
+        x_scale_type = "linear"
+    end
 
     plot = simulations_df |> @vlplot(
         mark={:line, point=true, color="#999", strokeWidth=1},
         x={
             x,
-            title="Prevention",
-            scale={nice=false},
-            axis={offset=7, values=[x_min, x_argmax, x_max], format=x_format, labelFlush=false}
+            title=x_title,
+            scale={nice=false, type=x_scale_type},
+            axis={
+                offset=7,
+                values=[x_min, x_argmax, x_max],
+                format=x_format,
+                labelFlush=false
+            }
         },
         y={
-            :welfare_mean,
-            title="Average welfare",
+            y,
+            title=y_title,
             scale={domain=[y_min, y_max], nice=false},
             axis={values=[y_min, y_max], offset=10, format="d"}
         },
@@ -335,9 +355,9 @@ function plot_welfare_vs_prevention(simulations_df::DataFrame; x=:B)
 end
 
 
-function plot_welfare_vs_prevention(path_to_simulations_df::String; x=:B)
+function plot_simulations(path_to_simulations_df::String; x=:B, y=:welfare_mean)
     simulations_df = CSV.File(path_to_simulations_df) |> DataFrame
-    return plot_welfare_vs_prevention(simulations_df; x=x)
+    return plot_simulations(simulations_df; x=x, y=y)
 end
 
 
@@ -440,12 +460,12 @@ function reproduce()
         default_parameters,
         500
     )
-    plot_welfare_vs_prevention(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>
+    plot_simulations(joinpath("data", "simulations_one_pandemic_500_runs.csv")) |>
         save(joinpath("images", "one_pandemic_500_runs.svg"))
 
     run_and_save_simulation([5, 8, B_star, 10, 11, 15], default_parameters, 5000)
     joinpath("data", "simulations_one_pandemic_5000_runs.csv") |>
-        plot_welfare_vs_prevention |>
+        plot_simulations |>
         save(joinpath("images", "one_pandemic_5000_runs.svg"))
 
     default_parameters_multiple = copy(default_parameters)
@@ -456,12 +476,12 @@ function reproduce()
         500
     )
     joinpath("data", "simulations_multiple_pandemics_500_runs.csv") |>
-        (it -> plot_welfare_vs_prevention(it; x=:b)) |>
+        (it -> plot_simulations(it; x=:b)) |>
         save(joinpath("images", "multiple_pandemics_500_runs.svg"))
 
     run_and_save_simulation([15, 20, 25, 30, 35], default_parameters_multiple, 5000)
     joinpath("data", "simulations_multiple_pandemics_5000_runs.csv") |>
-        (it -> plot_welfare_vs_prevention(it; x=:b)) |>
+        (it -> plot_simulations(it; x=:b)) |>
         save(joinpath("images", "multiple_pandemics_5000_runs.svg"))
 
     rho_values = [0.0005, 0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
@@ -484,7 +504,22 @@ function reproduce()
         n_runs_factor=10
     )
 
+    # Plot best prevention as a function of rho
+    joinpath("data", "prevention_vs_rho_single_pandemic.csv") |>
+    it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
+    save(joinpath("images", "prevention_vs_rho_single_pandemic.svg"))
 
+    joinpath("data", "prevention_vs_rho_multiple_pandemics.csv") |>
+        it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
+        save(joinpath("images", "prevention_vs_rho_multiple_pandemics_500_1.svg"))
+
+    joinpath("data", "prevention_vs_rho_multiple_pandemics_2.csv") |>
+        it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
+        save(joinpath("images", "prevention_vs_rho_multiple_pandemics_500_2.svg"))
+
+    joinpath("data", "prevention_vs_rho_multiple_pandemics_5000.csv") |>
+        it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
+        save(joinpath("images", "prevention_vs_rho_multiple_pandemics_5000.svg"))
 end
 
 end # module pandprep

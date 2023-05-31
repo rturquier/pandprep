@@ -350,6 +350,68 @@ function run_and_save_simulation(prevention_values, parameters, n_each)
 end
 
 
+function get_min_and_max_B_for_top_3_welfare(simulation_df)
+    top_n = simulation_df |>
+        it -> sort(it, :welfare_mean; rev=true) |>
+        it -> first(it, 3)
+
+    B_max = top_n.B |> maximum
+    B_min = top_n.B |> minimum
+
+    return [B_min, B_max]
+end
+
+
+function make_range_from_bounds(bounds, step)
+    lower_bound = minimum(bounds)
+    higher_bound = maximum(bounds)
+    range = collect(lower_bound:step:higher_bound)
+    return range
+end
+
+
+function get_best_prevention_for_rho(rho::Number, parameters; n_runs_factor=1)
+    parameters["rho"] = rho
+    n_runs = [10, 50, 100, 500, 500] * n_runs_factor
+
+    precise_run = run_and_summarise(collect(0:10:50), parameters, n_runs[1]) |>
+        get_min_and_max_B_for_top_3_welfare |>
+        it -> make_range_from_bounds(it, 5) |>
+        it -> run_and_summarise(it, parameters, n_runs[2]) |>
+        get_min_and_max_B_for_top_3_welfare |>
+        it -> make_range_from_bounds(it, 2.5) |>
+        it -> run_and_summarise(it, parameters, n_runs[3]) |>
+        get_min_and_max_B_for_top_3_welfare |>
+        it -> make_range_from_bounds(it, 1) |>
+        it -> run_and_summarise(it, parameters, n_runs[4]) |>
+        get_min_and_max_B_for_top_3_welfare |>
+        it -> make_range_from_bounds(it, 0.5) |>
+        it -> run_and_summarise(it, parameters, n_runs[5])
+
+    best_prevention = precise_run.B[argmax(precise_run.welfare_mean)]
+    return best_prevention
+end
+
+
+function get_best_prevention_for_rho(rho_values::Array, parameters; n_runs_factor=1)
+    B(rho) = get_best_prevention_for_rho(rho, parameters; n_runs_factor=n_runs_factor)
+    prevention_values = B.(rho_values)
+    return prevention_values
+end
+
+
+function get_best_prevention_for_rho_and_save(
+    rho_values, parameters, save_path; n_runs_factor=1
+)
+    prevention_values = get_best_prevention_for_rho(
+        rho_values, parameters; n_runs_factor=n_runs_factor
+    )
+    df = DataFrame([rho_values, prevention_values], ["rho", "best_prevention"])
+    CSV.write(save_path, df)
+    return df
+end
+
+
 "Optimal level of prevention according to the analytical model"
 B_star = find_zero(B -> f(B, 0.5, 0.2, 0.01, 8, 10, 2, 1, 0.4, 1, 25), 2)
 
@@ -367,6 +429,7 @@ default_parameters = Dict(
     "beta" => 1.0,
     "rho" => 0.01,
 )
+
 
 function reproduce()
     plot_expected_welfare(default_parameters) |>
@@ -400,6 +463,28 @@ function reproduce()
     joinpath("data", "simulations_multiple_pandemics_5000_runs.csv") |>
         (it -> plot_welfare_vs_prevention(it; x=:b)) |>
         save(joinpath("images", "multiple_pandemics_5000_runs.svg"))
+
+    rho_values = [0.0005, 0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+    save_path = joinpath("data", "prevention_vs_rho_single_pandemic.csv")
+    get_best_prevention_for_rho_and_save(rho_values, default_parameters, save_path)
+
+    save_path = joinpath("data", "prevention_vs_rho_multiple_pandemics.csv")
+    get_best_prevention_for_rho_and_save(rho_values, default_parameters_multiple, save_path)
+
+    # Previous results were strange. Let's re-run it to see if it changes a lot:
+    save_path = joinpath("data", "prevention_vs_rho_multiple_pandemics_2.csv")
+    get_best_prevention_for_rho_and_save(rho_values, default_parameters_multiple, save_path)
+
+    # It did change a lot. Let's generate the same data with 10 times more model runs:
+    save_path = joinpath("data", "prevention_vs_rho_multiple_pandemics_5000.csv")
+    get_best_prevention_for_rho_and_save(
+        rho_values,
+        default_parameters_multiple,
+        save_path;
+        n_runs_factor=10
+    )
+
+
 end
 
 end # module pandprep

@@ -303,7 +303,19 @@ function run_and_summarise(B, parameters, n)
     df = transform(df, :B => (x -> x / (parameters["A"] * parameters["N_max"]))  => :b)
 end
 
+function convert_prevention_to_share(simulations_df::DataFrame)
+    default_technology = 8
+    default_population = 10
+    default_max_income = default_technology * default_population
+    simulations_df[:, "best_prevention"] /= default_max_income
+    return simulations_df
+end
+
 function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
+    if y == :best_prevention
+        simulations_df = convert_prevention_to_share(simulations_df)
+    end
+
     y_min = simulations_df[:, y] |> minimum
     y_max = simulations_df[:, y] |> maximum
     x_min = simulations_df[:, x] |> minimum
@@ -320,10 +332,12 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
         x_title = "Utility discount rate"
         y_title = "Best prevention level"
         x_scale_type = "log"
+        y_format = "%"
     else
         x_title = "Prevention"
         y_title = "Expected welfare"
         x_scale_type = "linear"
+        y_format = "d"
     end
 
     plot = simulations_df |> @vlplot(
@@ -343,7 +357,7 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
             y,
             title=y_title,
             scale={domain=[y_min, y_max], nice=false},
-            axis={values=[y_min, y_max], offset=10, format="d"}
+            axis={values=[y_min, y_max], offset=10, format=y_format}
         },
         config={
             view={width=500, height=250, stroke=nothing},
@@ -506,8 +520,8 @@ function reproduce()
 
     # Plot best prevention as a function of rho
     joinpath("data", "prevention_vs_rho_single_pandemic.csv") |>
-    it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
-    save(joinpath("images", "prevention_vs_rho_single_pandemic.svg"))
+        it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
+        save(joinpath("images", "prevention_vs_rho_single_pandemic.svg"))
 
     joinpath("data", "prevention_vs_rho_multiple_pandemics.csv") |>
         it -> plot_simulations(it; x=:rho, y=:best_prevention) |>

@@ -82,7 +82,13 @@ function plot_expected_welfare(parameters)
                 "x:q",
                 title="Prevention",
                 scale={nice=false},
-                axis={offset=7, values=[x_min, x_argmax, x_max], format="%"}
+                axis={
+                    offset=7,
+                    values=[x_min, x_argmax, x_max],
+                    format="%",
+                    labelFlush=false,
+                    labelPadding=8
+                }
             },
         y={
             "y:q",
@@ -92,7 +98,7 @@ function plot_expected_welfare(parameters)
         },
         config={
                 view={width=500, height=250, stroke=nothing},
-                axisY={titleAngle=0, titleX=-25, titleY=-10, titleAlign="left"},
+                axisY={titleAngle=0, titleX=-30, titleY=-15, titleAlign="left"},
                 axis={grid=false}
             }
     )
@@ -352,7 +358,8 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
                 offset=7,
                 values=[x_min, x_argmax, x_max],
                 format=x_format,
-                labelFlush=false
+                labelFlush=false,
+                labelPadding=8
             }
         },
         y={
@@ -363,7 +370,7 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
         },
         config={
             view={width=500, height=250, stroke=nothing},
-            axisY={titleAngle=0, titleX=-25, titleY=-10, titleAlign="left"},
+            axisY={titleAngle=0, titleX=-30, titleY=-15, titleAlign="left"},
             axis={grid=false}
         }
     )
@@ -545,7 +552,7 @@ function reproduce_plots()
         it -> plot_simulations(it; x=:rho, y=:best_prevention) |>
         save(joinpath("images", "prevention_vs_rho_multiple_pandemics_5000.svg"))
 
-    end
+end
 
 
 end # module pandprep

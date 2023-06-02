@@ -67,11 +67,13 @@ end
 
 
 function plot_expected_welfare(parameters)
-    points_x = collect(0:0.01:50)
-    points_y = (B -> expected_welfare(B, parameters)).(points_x)
+    maximum_production = parameters["A"] * parameters["N_max"]
+    absolute_prevention_values = collect(0:0.01:50)
+    points_x = absolute_prevention_values / maximum_production
+    points_y = (B -> expected_welfare(B, parameters)).(absolute_prevention_values)
     data = DataFrame([points_x, points_y], ["x", "y"])
-    y_min = minimum(points_y)
-    y_max = maximum(points_y)
+    y_min, y_max = minimum(points_y), maximum(points_y)
+    x_min, x_max = minimum(points_x), maximum(points_x)
     x_argmax = points_x[argmax(points_y)]
 
     plot = data |> @vlplot(
@@ -80,7 +82,7 @@ function plot_expected_welfare(parameters)
                 "x:q",
                 title="Prevention",
                 scale={nice=false},
-                axis={offset=7, values=[0, x_argmax, 50], format=".3"}
+                axis={offset=7, values=[x_min, x_argmax, x_max], format="%"}
             },
         y={
             "y:q",
@@ -316,17 +318,17 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
         simulations_df = convert_prevention_to_share(simulations_df)
     end
 
+    if x == :B
+        simulations_df[:, x] /= 80  # Divide by default total production
+    end
+
     y_min = simulations_df[:, y] |> minimum
     y_max = simulations_df[:, y] |> maximum
     x_min = simulations_df[:, x] |> minimum
     x_max = simulations_df[:, x] |> maximum
     x_argmax = simulations_df[argmax(simulations_df[:, y]), x]
+    x_format = "%"
 
-    if x in [:b, :rho]
-        x_format = "%"
-    else
-        x_format = "s"
-    end
 
     if x==:rho
         x_title = "Utility discount rate"

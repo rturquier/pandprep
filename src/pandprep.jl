@@ -337,14 +337,16 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
 
 
     if x==:rho
-        x_title = "Utility discount rate"
-        y_title = "Best prevention level"
+        x_title = ["Utility discount rate", "(log scale)"]
         x_scale_type = "log"
+        x_axis_values = simulations_df[:, x]
+        y_title = "Best prevention level"
         y_format = "%"
     else
         x_title = "Prevention"
-        y_title = "Expected welfare"
         x_scale_type = "linear"
+        x_axis_values = [x_min, x_argmax, x_max]
+        y_title = "Expected welfare"
         y_format = "d"
     end
 
@@ -356,7 +358,7 @@ function plot_simulations(simulations_df::DataFrame; x=:B, y=:welfare_mean)
             scale={nice=false, type=x_scale_type},
             axis={
                 offset=7,
-                values=[x_min, x_argmax, x_max],
+                values=x_axis_values,
                 format=x_format,
                 labelFlush=false,
                 labelPadding=8

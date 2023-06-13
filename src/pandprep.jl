@@ -557,4 +557,44 @@ function reproduce_plots()
 end
 
 
+"""Additional plot for thesis defence"""
+function plot_welfare_collapse()
+    default_parameters_multiple = copy(default_parameters)
+    default_parameters_multiple["multiple"] = true
+
+    model = construct_model(25, default_parameters_multiple)
+    run(model)
+    welfare_df = getdataframe(model, :welfare=>:W) |>
+        df -> transform(df, :time => (x -> x .- 2000) => :t)
+
+    welfare_plot = welfare_df |>
+        @vlplot(
+            mark=:line,
+            x={
+                    "t:q",
+                    title="Time",
+                    scale={nice=false},
+                    axis={
+                        # offset=7,
+                        values=collect(0:100:500),
+                        labelFlush=false,
+                        labelPadding=8
+                    }
+                },
+            y={
+                "W:q",
+                title="Welfare",
+                scale={domain=[0, 8.18182], nice=false},
+                axis={values=[0, 8.18182]}
+            },
+            config={
+                    view={width=500, height=250, stroke=nothing},
+                    axisY={titleAngle=0, titleX=-0, titleY=-15, titleAlign="left"},
+                    axis={grid=false}
+                }
+        )
+
+    welfare_plot |> save(joinpath("images", "welfare_collapse.svg"))
+end
+
 end # module pandprep
